@@ -1,19 +1,37 @@
+#![allow(dead_code)]
+#![allow(unused_macros)]
+
 extern crate anymap;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct Entity {
+    handle: usize,
+    generation: u32
+}
 
 macro_rules! tiles {
     ($name:ident, [$($c:ty),+]) => {
+        use Entity;
 
         pub struct $name {
             size: usize,
-            components: ::anymap::AnyMap
+            components: ::anymap::AnyMap,
+            entities: Vec<Entity>,
+            entity_lookup: Vec<usize>
         }
 
         impl $name { 
             pub fn new(size: usize) -> $name {
+                let entities = 
+                    (0..size)
+                    .map(|i| Entity { handle: i, generation: 0 })
+                    .collect::<Vec<Entity>>();
+                let entity_lookup = entities.iter().map(|e| e.handle).collect();
                 $name {
                     size,
-                    components: Self::create_component_storage(size)
+                    components: Self::create_component_storage(size),
+                    entities,
+                    entity_lookup
                 }
             }        
 
@@ -96,6 +114,11 @@ macro_rules! tiles {
             where T: 'static {
                 let cs = self.get_components_mut::<T>();
                 cs[target] = cs[source].take();
+            }
+
+            pub fn take<T>(&mut self, tile: usize) -> T
+            where T: 'static {
+                self.get_components_mut::<T>()[tile].take().unwrap()
             }
         }
     };
