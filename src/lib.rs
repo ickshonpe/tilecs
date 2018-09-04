@@ -16,22 +16,22 @@ macro_rules! tiles {
         pub struct $name {
             size: usize,
             components: ::anymap::AnyMap,
-            entities: Vec<Entity>,
-            entity_lookup: Vec<usize>
+            locations_to_entities: Vec<Entity>,
+            entity_handles_to_entity_locations: Vec<usize>
         }
 
         impl $name { 
             pub fn new(size: usize) -> $name {
-                let entities = 
+                let locations_to_entities = 
                     (0..size)
                     .map(|i| Entity { handle: i, generation: 0 })
                     .collect::<Vec<Entity>>();
-                let entity_lookup = entities.iter().map(|e| e.handle).collect();
+                let entity_handles_to_entity_locations = locations_to_entities.iter().map(|e| e.handle).collect();
                 $name {
                     size,
                     components: Self::create_component_storage(size),
-                    entities,
-                    entity_lookup
+                    locations_to_entities,
+                   entity_handles_to_entity_locations
                 }
             }        
 
@@ -74,6 +74,7 @@ macro_rules! tiles {
 
             pub fn delete(&mut self, tile: usize) {
                 $(self.remove::<$c>(tile);)*
+                self.locations_to_entities[tile].generation += 1;
             }
 
             pub fn clear_all(&mut self) {
@@ -106,11 +107,12 @@ macro_rules! tiles {
 
             pub fn move_tile(&mut self, source: usize, target: usize) {
                 $({
-                   self.transfer::<$c>(source, target);
-                })*                
+                   self.move_component::<$c>(source, target);
+                })*         
+
             }
 
-            pub fn transfer<T>(&mut self, source: usize, target: usize)
+            pub fn move_component<T>(&mut self, source: usize, target: usize)
             where T: 'static {
                 let cs = self.get_components_mut::<T>();
                 cs[target] = cs[source].take();
@@ -119,6 +121,10 @@ macro_rules! tiles {
             pub fn take<T>(&mut self, tile: usize) -> T
             where T: 'static {
                 self.get_components_mut::<T>()[tile].take().unwrap()
+            }
+
+            pub fn get_entity_at(&self, tile: usize) -> Entity {
+                self.locations_to_entities[tile]
             }
         }
     };
